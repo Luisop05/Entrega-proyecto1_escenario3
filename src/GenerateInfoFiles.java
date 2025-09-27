@@ -43,7 +43,28 @@ public class GenerateInfoFiles {
     private static final String[] TIPOS_DOCUMENTO = {"CC", "CE", "TI", "PP"};
     
     private static Random random = new Random();
-    private static List<String> vendedoresGenerados = new ArrayList<>();
+    private static List<VendedorInfo> vendedoresGenerados = new ArrayList<>();
+    
+    /**
+     * Clase interna para mantener la información completa del vendedor
+     */
+    private static class VendedorInfo {
+        String tipoDocumento;
+        long numeroDocumento;
+        String nombres;
+        String apellidos;
+        
+        public VendedorInfo(String tipoDoc, long numDoc, String nombres, String apellidos) {
+            this.tipoDocumento = tipoDoc;
+            this.numeroDocumento = numDoc;
+            this.nombres = nombres;
+            this.apellidos = apellidos;
+        }
+        
+        public String getIdentificacion() {
+            return tipoDocumento + ";" + numeroDocumento;
+        }
+    }
     
     /**
      * Método principal que ejecuta la generación de todos los archivos necesarios.
@@ -128,11 +149,14 @@ public class GenerateInfoFiles {
                 String nombres = generarNombres();
                 String apellidos = generarApellidos();
                 
+                // Crear objeto vendedor y agregarlo a la lista
+                VendedorInfo vendedor = new VendedorInfo(tipoDocumento, numeroDocumento, nombres, apellidos);
+                vendedoresGenerados.add(vendedor);
+                
+                // Escribir al archivo
                 String lineaVendedor = tipoDocumento + ";" + numeroDocumento + ";" + 
                                      nombres + ";" + apellidos;
-                
                 writer.write(lineaVendedor + "\n");
-                vendedoresGenerados.add(tipoDocumento + ";" + numeroDocumento);
             }
         } finally {
             writer.close();
@@ -153,13 +177,25 @@ public class GenerateInfoFiles {
             throw new IllegalArgumentException("La cantidad de ventas debe ser mayor a 0");
         }
         
-        String tipoDoc = TIPOS_DOCUMENTO[random.nextInt(TIPOS_DOCUMENTO.length)];
-        String nombreArchivo = "ventas_" + tipoDoc + "_" + id + ".txt";
+        // Buscar el vendedor en la lista para obtener su tipo de documento
+        VendedorInfo vendedorEncontrado = null;
+        for (VendedorInfo v : vendedoresGenerados) {
+            if (v.numeroDocumento == id) {
+                vendedorEncontrado = v;
+                break;
+            }
+        }
+        
+        if (vendedorEncontrado == null) {
+            throw new IllegalArgumentException("No se encontró el vendedor con ID: " + id);
+        }
+        
+        String nombreArchivo = "ventas_" + vendedorEncontrado.tipoDocumento + "_" + id + ".txt";
         FileWriter writer = new FileWriter(nombreArchivo);
         
         try {
-            // Primera línea: información del vendedor
-            writer.write(tipoDoc + ";" + id + "\n");
+            // Primera línea: información del vendedor (debe coincidir con vendedores.txt)
+            writer.write(vendedorEncontrado.getIdentificacion() + "\n");
             
             // Generar ventas aleatorias
             for (int i = 0; i < randomSalesCount; i++) {
@@ -178,13 +214,9 @@ public class GenerateInfoFiles {
      */
     private static void generateSalesFiles() {
         try {
-            for (String vendedor : vendedoresGenerados) {
-                String[] partes = vendedor.split(";");
-                String tipoDoc = partes[0];
-                long numeroDoc = Long.parseLong(partes[1]);
-                
+            for (VendedorInfo vendedor : vendedoresGenerados) {
                 int cantidadVentas = random.nextInt(15) + 5; // Entre 5 y 19 ventas
-                createSalesMenFile(cantidadVentas, "", numeroDoc);
+                createSalesMenFile(cantidadVentas, "", vendedor.numeroDocumento);
             }
         } catch (IOException e) {
             System.err.println("Error generando archivos de ventas: " + e.getMessage());
